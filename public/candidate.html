@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="data:,">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidate Video</title>
+</head>
+<body>
+  <h1>Candidate Video Stream</h1>
+  <video id="candidate-video" autoplay muted playsinline></video>
+  <script>
+    const videoElement = document.getElementById("candidate-video");
+    const ws = new WebSocket("ws://localhost:3000");
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "candidate-video" }));
+    };
+
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: false })
+      .then((stream) => {
+        videoElement.srcObject = stream;
+
+        const videoTrack = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(videoTrack);
+
+        // Send video frames to the server
+        setInterval(async () => {
+          try {
+            const imageBitmap = await imageCapture.grabFrame();
+
+            // Convert ImageBitmap to Blob
+            const canvas = document.createElement("canvas");
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(imageBitmap, 0, 0);
+
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const reader = new FileReader();
+                
+                // Event handler for when the Blob is read successfully
+                reader.onload = () => {
+                  // Now reader.result will contain the Data URL
+                  const frameData = reader.result;
+
+                  // Send the frame data if WebSocket is open
+                  if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "video-frame", frame: frameData }));
+                  } else {
+                    console.warn("WebSocket is not open.");
+                  }
+                };
+
+                // Read the Blob as a Data URL (this triggers the onload event)
+                reader.readAsDataURL(blob);
+              }
+            }, "image/jpeg"); // Ensure Blob is in 'image/jpeg' format
+          } catch (error) {
+            console.error("Error capturing frame:", error);
+          }
+        }, 10000); // Send every 100ms
+      })
+      .catch((error) => {
+        console.error("Error accessing video stream:", error);
+      });
+  </script>
+</body>
+</html>
