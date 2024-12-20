@@ -11,9 +11,10 @@
   <video id="candidate-video" autoplay muted playsinline></video>
   <script>
     const videoElement = document.getElementById("candidate-video");
-    const ws = new WebSocket("ws://localhost:3000");
+    const ws = new WebSocket("ws://127.0.0.1:3001");
 
     ws.onopen = () => {
+      console.log("WebSocket connection established.");
       ws.send(JSON.stringify({ type: "candidate-video" }));
     };
 
@@ -21,7 +22,6 @@
       .getUserMedia({ video: true, audio: false })
       .then((stream) => {
         videoElement.srcObject = stream;
-
         const videoTrack = stream.getVideoTracks()[0];
         const imageCapture = new ImageCapture(videoTrack);
 
@@ -29,8 +29,6 @@
         setInterval(async () => {
           try {
             const imageBitmap = await imageCapture.grabFrame();
-
-            // Convert ImageBitmap to Blob
             const canvas = document.createElement("canvas");
             canvas.width = imageBitmap.width;
             canvas.height = imageBitmap.height;
@@ -40,28 +38,19 @@
             canvas.toBlob((blob) => {
               if (blob) {
                 const reader = new FileReader();
-                
-                // Event handler for when the Blob is read successfully
                 reader.onload = () => {
-                  // Now reader.result will contain the Data URL
                   const frameData = reader.result;
-
-                  // Send the frame data if WebSocket is open
                   if (ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: "video-frame", frame: frameData }));
-                  } else {
-                    console.warn("WebSocket is not open.");
                   }
                 };
-
-                // Read the Blob as a Data URL (this triggers the onload event)
                 reader.readAsDataURL(blob);
               }
-            }, "image/jpeg"); // Ensure Blob is in 'image/jpeg' format
+            }, "image/jpeg");
           } catch (error) {
             console.error("Error capturing frame:", error);
           }
-        }, 10000); // Send every 100ms
+        }, 100); // Send every 100ms
       })
       .catch((error) => {
         console.error("Error accessing video stream:", error);

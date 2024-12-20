@@ -11,26 +11,21 @@
   <script>
     const canvas = document.getElementById("host-canvas");
     const ctx = canvas.getContext("2d");
-    const ws = new WebSocket("ws://localhost:3000");
+    const ws = new WebSocket("ws://localhost:3001");
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "host-video" }));
     };
 
     ws.onmessage = (message) => {
-      // Directly use message.data since it is a base64 string
-      const imageData = message.data; 
-
-      // Create an image element
+      const imageData = message.data;
       const img = new Image();
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
       };
-
-      // Set the source of the image to the base64 string received
-      img.src = imageData; // This is the base64 image string (data:image/jpeg;base64,...)
+      img.src = imageData; // Base64 image string (data:image/jpeg;base64,...)
     };
   </script>
 </body>
