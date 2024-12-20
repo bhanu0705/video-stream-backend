@@ -1,6 +1,6 @@
 import asyncio
 import websockets
-from flask import Flask, send_from_directory
+from flask import Flask, render_template, jsonify
 import threading
 import json
 
@@ -12,18 +12,20 @@ host_socket = None
 candidate_socket = None
 
 
-@app.route('/<path:path>')
-def serve_static(path):
-    """
-    Serve static files like HTML, CSS, JS, etc.
-    """
-    return send_from_directory('public', path)
+@app.route("/")
+def home():
+    """Serve the candidate page as the default."""
+    return render_template("candidate.html")
+
+
+@app.route("/host")
+def host_page():
+    """Serve the host page."""
+    return render_template("host.html")
 
 
 async def handle_connection(websocket, path):
-    """
-    WebSocket connection handler.
-    """
+    """WebSocket connection handler."""
     global host_socket, candidate_socket
     print("New WebSocket connection established.")
 
@@ -31,16 +33,16 @@ async def handle_connection(websocket, path):
         async for message in websocket:
             data = json.loads(message)
 
-            if data['type'] == 'candidate-video':
+            if data["type"] == "candidate-video":
                 candidate_socket = websocket
                 print("Candidate connected.")
-            elif data['type'] == 'host-video':
+            elif data["type"] == "host-video":
                 host_socket = websocket
                 print("Host connected.")
-            elif data['type'] == 'video-frame' and host_socket:
+            elif data["type"] == "video-frame" and host_socket:
                 # Forward video frames from candidate to host
                 if host_socket.open:
-                    await host_socket.send(data['frame'])
+                    await host_socket.send(data["frame"])
             else:
                 print("Unrecognized message:", data)
 
@@ -51,22 +53,19 @@ async def handle_connection(websocket, path):
         if websocket == host_socket:
             host_socket = None
 
+
 def start_websocket_server():
-    """
-    Start the WebSocket server using asyncio in a thread-safe way.
-    """
-    # Set asyncio's event loop policy for compatibility in threads
+    """Start the WebSocket server using asyncio in a thread-safe way."""
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     # Run the WebSocket server in this event loop
-    server = websockets.serve(handle_connection, 'localhost', 3001)
+    server = websockets.serve(handle_connection, "localhost", 3001)
     loop.run_until_complete(server)
     print("WebSocket server running on ws://localhost:3001")
     loop.run_forever()
-
 
 
 # Start Flask app and WebSocket server concurrently

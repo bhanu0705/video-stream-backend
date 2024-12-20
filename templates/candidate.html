@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="data:,">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidate Video</title>
+</head>
+<body>
+  <h1>Candidate Video Stream</h1>
+  <video id="candidate-video" autoplay muted playsinline></video>
+  <script>
+    const videoElement = document.getElementById("candidate-video");
+    const ws = new WebSocket("ws://127.0.0.1:3001");
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established.");
+      ws.send(JSON.stringify({ type: "candidate-video" }));
+    };
+
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: false })
+      .then((stream) => {
+        videoElement.srcObject = stream;
+        const videoTrack = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(videoTrack);
+
+        // Send video frames to the server
+        setInterval(async () => {
+          try {
+            const imageBitmap = await imageCapture.grabFrame();
+            const canvas = document.createElement("canvas");
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(imageBitmap, 0, 0);
+
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const frameData = reader.result;
+                  if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "video-frame", frame: frameData }));
+                  }
+                };
+                reader.readAsDataURL(blob);
+              }
+            }, "image/jpeg");
+          } catch (error) {
+            console.error("Error capturing frame:", error);
+          }
+        }, 100); // Send every 100ms
+      })
+      .catch((error) => {
+        console.error("Error accessing video stream:", error);
+      });
+  </script>
+</body>
+</html>
