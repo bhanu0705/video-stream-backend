@@ -2,7 +2,7 @@ from flask import Flask, render_template
 import threading
 import asyncio
 import websockets
-import json  # Import json module
+import json
 
 # Flask apps
 candidate_app = Flask(__name__)
@@ -27,7 +27,7 @@ async def handle_connection(websocket, path):
     global candidate_socket, host_socket
 
     async for message in websocket:
-        data = json.loads(message)  # Now this will work
+        data = json.loads(message)
 
         if data["type"] == "candidate-video":
             candidate_socket = websocket
